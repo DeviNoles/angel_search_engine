@@ -1,0 +1,10 @@
+targets:
+  _standalone:
+    sources:
+      - lib/src/models/search_result.dart
+      - lib/src/models/web_page.dart
+  $default:
+    dependencies:
+      - :_standalone
+    sources:
+      - lib/src/models/search_results.dart

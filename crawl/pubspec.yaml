@@ -1,0 +1,13 @@
+name: crawl
+publish_to: none
+environment:
+  sdk: ">=2.0.0-dev <3.0.0"
+dependencies:
+  angel_sembast: ^1.0.0
+  args: ^1.0.0
+  canonical_url: ^1.0.0
+  engine:
+    path: ../engine
+  html: ^0.13.0
+  isolate: ^2.0.0
+  tuple: ^1.0.0
