@@ -6,6 +6,7 @@ environment:
 homepage: https://github.com/angel-dart/angel
 dependencies:
   angel_auth: ^2.0.0-alpha # Supports stateless authentication via JWT
+  angel_cache: ^2.0.0
   angel_configuration: ^2.0.0 # Loads application configuration, along with support for .env files.
   angel_framework: ^2.0.0-alpha # The core server library.
   angel_production: ^1.0.0-alpha

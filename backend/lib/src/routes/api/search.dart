@@ -7,10 +7,12 @@ import 'stop_words.dart';
 
 final stopWords = wordPartsRaw(stopWordsString);
 
+final _rgx = new RegExp(r'([ \n\r\t]|\W)+');
+
 List<String> wordPartsRaw(String input) {
   return input
       .toLowerCase()
-      .split(new RegExp(r'([ \n\r\t]|\W)+'))
+      .split(_rgx)
       .map((s) {
         // Remove non-alphanumeric text
         var b = new StringBuffer();
@@ -45,6 +47,7 @@ RequestHandler search(Service<String, WebPage> service) {
     })),
     (req, res) async {
       var params = await req.parseQuery();
+      res.useBuffer(); // Enable caching
       return resolver(params);
     },
   ]);
@@ -63,21 +66,31 @@ Future<SearchResults> Function(Map<String, dynamic>) searchResolver(
     for (var webPage in await service.index()) {
       var score = 0.0;
 
-      void doScore(String ref, bool asTitle) {
-        var parts = wordParts(ref ?? '');
-        var points = asTitle ? pointsPerWord * 2 : pointsPerWord;
-        var matches =
-            queryParts.where((x) => parts.any((s) => s.contains(x))).length;
+      void doScore(String ref, double weight, bool splitText) {
+        if (ref?.trim()?.isNotEmpty != true) return;
+
+        var points = weight * pointsPerWord;
+        int matches;
+
+        if (splitText) {
+          var parts = wordParts(ref ?? '');
+          matches =
+              queryParts.where((x) => parts.any((s) => s.contains(x))).length;
+        } else {
+          // If we are not splitting text, it's in the interest of time, so just
+          // do a simple contains.
+          matches = queryParts.where(ref.toLowerCase().contains).length;
+        }
         score += matches * points;
       }
 
       // Apply scoring.
-      doScore(webPage.title, true);
-      doScore(webPage.author, true);
-      doScore(webPage.keywordString, true);
-      doScore(webPage.description, true);
-      doScore(webPage.decodedContents, false);
-      doScore(webPage.url, false);
+      doScore(webPage.title, 2.0, true);
+      doScore(webPage.author, 2.0, true);
+      doScore(webPage.keywordString, 2.0, true);
+      doScore(webPage.url, 2.0, false);
+      doScore(webPage.description, 2.0, false);
+      doScore(webPage.decodedContents, 1.0, false);
 
       // Return the result if there were any match.
       if (score > 0.0) {

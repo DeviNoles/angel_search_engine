@@ -1,90 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Search</title>
     <style>
-        #error {
-            color: red;
-        }
+      #error {
+        color: red;
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <h1>Search</h1>
-    <form onsubmit="handleSubmit(event)">
-        <input name="query" placeholder="Enter a query..." type="text">
-        <input type="submit" value="Search">
+    <form id="searchForm" onsubmit="handleSubmit(event)">
+      <input
+        onkeyup="handleSubmit()"
+        name="query"
+        placeholder="Enter a query..."
+        type="text"
+        autocomplete="off"
+      />
+      <input type="submit" value="Search" />
     </form>
-    <br>
+    <br />
     <i id="searching" style="display: none">Searching...</i>
     <div id="results-section" style="display: none">
-        <h3 id="results-header">Results:</h3>
-        <p id="error" style="display: none">Hmm... No results appeared.</p>
-        <ul id="results"></ul>
+      <h3 id="results-header">Results:</h3>
+      <p id="error" style="display: none">Hmm... No results appeared.</p>
+      <ul id="results"></ul>
     </div>
     <script src="fetch.js"></script>
     <script>
-        function handleSubmit(e) {
-            var formData = new FormData(e.target);
-            var query = formData.get('query');
-            e.preventDefault();
+      function handleSubmit(e) {
+        e = e || {
+          target: document.getElementById("searchForm"),
+          preventDefault: function() {}
+        };
+        var formData = new FormData(e.target);
+        var query = formData.get("query");
+        e && e.preventDefault();
 
-            if (query) {
-                document.getElementById('results-section').style.display = 'none';
-                document.getElementById('searching').style.removeProperty('display');
+        if (query) {
+          document.getElementById("results-section").style.display = "none";
+          document.getElementById("searching").style.removeProperty("display");
 
-                var opts = { headers: { accept: 'application/json' } };
-                fetch('/api/search?query=' + query, opts)
-                    .then(function (res) {
-                        if (res.ok) {
-                            return res.json();
-                        } else {
-                            throw new Error('Status code ' + res.status);
-                        }
-                    })
-                    .then(function (res) {
-                        renderResults(res.items || []);
-                    })
-                    .catch(function (e) {
-                        console.error(e);
-                        alert('Whoops! Search failed.');
-                    });
-            }
+          var opts = { headers: { accept: "application/json" } };
+          fetch("/api/search?query=" + query, opts)
+            .then(function(res) {
+              if (res.ok) {
+                return res.json();
+              } else {
+                throw new Error("Status code " + res.status);
+              }
+            })
+            .then(function(res) {
+              renderResults(res.items || []);
+            })
+            .catch(function(e) {
+              console.error(e);
+              alert("Whoops! Search failed.");
+            });
+        }
+      }
+
+      function renderResults(results) {
+        var resultsList = document.getElementById("results");
+        document
+          .getElementById("results-section")
+          .style.removeProperty("display");
+        document.getElementById("searching").style.display = "none";
+
+        // Remove all existing search children...
+        while (resultsList.childNodes.length > 0) {
+          resultsList.firstChild.remove();
         }
 
-        function renderResults(results) {
-            var resultsList = document.getElementById('results');
-            document.getElementById('results-section').style.removeProperty('display');
-            document.getElementById('searching').style.display = 'none';
-
-            // Remove all existing search children...
-            while (resultsList.childNodes.length > 0) {
-                resultsList.firstChild.remove();
-            }
-
-            if (!results.length) {
-                document.getElementById('error').style.removeProperty('display');
-                document.getElementById('results-header').textContent = "No Results";
-            } else {
-                document.getElementById('error').style.display = 'none';
-                document.getElementById('results-header').textContent = 'Results (' + results.length + ')';
-            }
-
-            for (i in results) {
-                var result = results[i];
-                var li = document.createElement('li');
-                var a = document.createElement('a');
-                a.href = result.url;
-                a.innerText = a.title = result.title.trim();
-                li.appendChild(a);
-                resultsList.appendChild(li);
-            }
+        if (!results.length) {
+          document.getElementById("error").style.removeProperty("display");
+          document.getElementById("results-header").textContent = "No Results";
+        } else {
+          document.getElementById("error").style.display = "none";
+          document.getElementById("results-header").textContent =
+            "Results (" + results.length + ")";
         }
+
+        for (i in results) {
+          var result = results[i];
+          var li = document.createElement("li");
+          var a = document.createElement("a");
+          a.href = result.url;
+          a.innerText = a.title = result.title.trim();
+          li.appendChild(a);
+          resultsList.appendChild(li);
+        }
+      }
     </script>
-</body>
-
+  </body>
 </html>

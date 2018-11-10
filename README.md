@@ -1,5 +1,5 @@
 # search
-A (slow) search engine built with Angel and Dart.
+A snappy search engine built with Angel and Dart.
 
 This consists of three parts:
 * `backend/` - Angel server, contains an `/api/search` API.
@@ -26,7 +26,15 @@ cd crawl
 dart bin/crawl.dart <some url here>
 ```
 
-## Why is it so slow?
+## Speed improvements
+The engine is no longer slow, which is nice. The reasons are mostly
+related to `package:angel_cache`:
+* Caching of database lookups
+* Caching of search results
+* No longer splits up the page text, and prefers a simple `String.contains` for large strings.
+This was the main bottleneck. Now that it's resolved, the algorithm is much faster.
+
+## Why WAS it so slow before?
 Several reasons:
 * All entries are saved to a single file, so scalability is limited.
 * Also, I/O is expensive.
