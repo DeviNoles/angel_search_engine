@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'package:canonical_url/canonical_url.dart';
 import 'package:engine/engine.dart';
 import 'package:html/dom.dart' as html;
 import 'package:html/parser.dart' as html;
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as http;
+import 'package:http2_client/http2_client.dart';
 import 'package:path/path.dart' as p;
 import 'package:isolate/load_balancer.dart';
 import 'package:isolate/isolate_runner.dart';
+
+final _client = http.IOClient();
+// final _client = Http2Client(maxOpenConnections: Platform.numberOfProcessors);
 
 Future crawl(
     String entryPoint, List<String> existing, void Function(WebPage) callback,
@@ -43,8 +48,6 @@ Future crawl(
   }
 }
 
-final _client = new HttpClient();
-
 String findMeta(html.Document doc, String name) {
   return (doc.head?.querySelector('meta[name="$name"]')?.attributes ??
               <dynamic, String>{})['content']
@@ -60,26 +63,23 @@ Future<Map<String, dynamic>> visitPage(List args) async {
 
   print('Now crawling $currentUri...');
 
-  HttpClientRequest rq;
+  http.Response rs;
 
   try {
-    rq = await _client.openUrl('GET', currentUri);
+    rs = await _client.get(currentUri, headers: {
+      HttpHeaders.acceptHeader: ContentType.html.mimeType,
+      HttpHeaders.userAgentHeader:
+          'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+    });
   } catch (_) {
     // Some failure... Just keep going...
     return null;
   }
 
-  rq.headers
-    ..set(HttpHeaders.acceptHeader, ContentType.html.mimeType)
-    ..set(HttpHeaders.userAgentHeader,
-        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
+  // Ignore non-200 codes
+  if (rs.statusCode < 200 || rs.statusCode >= 400) return null;
 
-  var rs = await rq.close();
-
-  var doc = await rs
-      .transform(const Utf8Decoder(allowMalformed: true))
-      .join()
-      .then(html.parse);
+  var doc = html.parse(rs.body);
 
   // Scrape the contents
   var now = new DateTime.now();
@@ -98,6 +98,8 @@ Future<Map<String, dynamic>> visitPage(List args) async {
   var links = doc
       .querySelectorAll('a')
       .where((e) => e.attributes['href']?.trim()?.isNotEmpty == true);
+
+  var hrefs = <Uri>[];
 
   for (var link in links) {
     var href = Uri.parse(link.attributes['href'].trim());
@@ -122,8 +124,14 @@ Future<Map<String, dynamic>> visitPage(List args) async {
     }
 
     // Enqueue the crawling of this link.
-    sendPort.send(href.toString());
+    hrefs.add(href);
   }
+
+  // Crawl local links first
+  var local = hrefs.where((h) => h.authority == currentUri.authority);
+  var foreign = hrefs.where((h) => !local.contains(h));
+  [local, foreign]
+      .forEach((l) => l.forEach((h) => sendPort.send(h.toString())));
 
   return webPage.toJson();
 }

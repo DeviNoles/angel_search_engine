@@ -7,7 +7,7 @@ import 'stop_words.dart';
 
 final stopWords = wordPartsRaw(stopWordsString);
 
-final _rgx = new RegExp(r'([ \n\r\t]|\W)+');
+final _rgx = RegExp(r'([ \n\r\t]|\W)+');
 
 List<String> wordPartsRaw(String input) {
   return input
@@ -15,7 +15,7 @@ List<String> wordPartsRaw(String input) {
       .split(_rgx)
       .map((s) {
         // Remove non-alphanumeric text
-        var b = new StringBuffer();
+        var b = StringBuffer();
 
         for (var ch in s.codeUnits) {
           if ((ch >= $0 && ch <= $9) ||
@@ -41,14 +41,13 @@ RequestHandler search(Service<String, WebPage> service) {
 
   return chain([
     autoParseQuery(['max_results']),
-    validateQuery(new Validator({
+    validateQuery(Validator({
       'query*': isNonEmptyString,
       'max_results': [isInt, greaterThan(0)],
     })),
     (req, res) async {
-      var params = await req.parseQuery();
       res.useBuffer(); // Enable caching
-      return resolver(params);
+      return resolver(req.queryParameters);
     },
   ]);
 }
@@ -57,11 +56,11 @@ Future<SearchResults> Function(Map<String, dynamic>) searchResolver(
     Service<String, WebPage> service) {
   return (params) async {
     var maxResults = params['max_results'] as int ?? 10;
-    var sw = new Stopwatch()..start();
+    var sw = Stopwatch()..start();
     var query = params['query'] as String;
     var queryParts = wordParts(query);
     var pointsPerWord = 1 / queryParts.length;
-    var resultss = new Set<SearchResult>();
+    var resultSet = Set<SearchResult>();
 
     for (var webPage in await service.index()) {
       var score = 0.0;
@@ -94,8 +93,8 @@ Future<SearchResults> Function(Map<String, dynamic>) searchResolver(
 
       // Return the result if there were any match.
       if (score > 0.0) {
-        resultss.add(
-          new SearchResult(
+        resultSet.add(
+          SearchResult(
             author: webPage.author,
             description: webPage.description,
             score: score,
@@ -107,11 +106,11 @@ Future<SearchResults> Function(Map<String, dynamic>) searchResolver(
     }
 
     // Sort the results by score.
-    var results = resultss.toList()..sort((a, b) => b.score.compareTo(a.score));
+    var results = resultSet.toList()..sort((a, b) => b.score.compareTo(a.score));
 
     sw.stop();
 
-    return new SearchResults(
+    return SearchResults(
         ms: sw.elapsedMilliseconds, items: results.take(maxResults).toList());
   };
 }

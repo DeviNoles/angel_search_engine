@@ -1,28 +1,29 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:angel_cache/angel_cache.dart';
 import 'package:angel_framework/angel_framework.dart';
-import 'package:angel_sembast/angel_sembast.dart';
+import 'package:angel_mongo/angel_mongo.dart';
 import 'package:engine/engine.dart';
-import 'package:path/path.dart' as p;
-import 'package:sembast/sembast_io.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 import 'search.dart';
 
 Future configureServer(Angel app) async {
   // Open the database
-  var searchDbPath = p.canonicalize(
-      p.join(p.fromUri(Platform.script), '..', '..', '..', 'search.db'));
-  var database = await databaseFactoryIo.openDatabase(searchDbPath);
+  // var searchDbPath = p.canonicalize(
+  //     p.join(p.fromUri(Platform.script), '..', '..', '..', 'search.db'));
+  // var database = await databaseFactoryIo.openDatabase(searchDbPath);
+  // // Create a service - we'll use this as a sort of ORM.
+  // var service = SembastService(database, store: 'spider');
 
-  // Create a service - we'll use this as a sort of ORM.
-  var service = new SembastService(database, store: 'spider');
+  var db = Db('mongodb://localhost:27017/angel_search_engine');
+  var service = MongoService(db.collection('spider'));
+  await db.open();
 
   var cacheDuration = const Duration(hours: 24);
 
   // File I/O is slow, though, so we'll keep an in-memory cache.
-  var cached = new CacheService(
+  var cached = CacheService(
     database: service,
-    cache: new MapService(),
+    cache: MapService(),
     timeout: cacheDuration,
     ignoreParams: true,
   );
@@ -40,7 +41,7 @@ Future configureServer(Angel app) async {
   // expensive computation.
   //
   // Searches can, and should be, cached.
-  var cache = new ResponseCache(timeout: cacheDuration)
+  var cache = ResponseCache(timeout: cacheDuration)
     ..patterns.add('/api/search');
 
   app
